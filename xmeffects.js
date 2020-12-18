@@ -92,13 +92,6 @@ var sinusTable = [
 	-127,-126,-125,-122,-117,-112,-106,-98,-90,-81,-71,-60,-49,-37,-25,-12
 ];
 
-var randomTable = [
-	98,-127,-43,88,102,41,-65,-94,125,20,-71,-86,-70,-32,-16,-96,
-	17,72,107,-5,116,-69,-62,-40,10,-61,65,109,-18,-38,-13,-76,
-	-23,88,21,-94,8,106,21,-112,6,109,20,-88,-30,9,-127,118,
-	42,-34,89,-4,-51,-72,21,-29,112,123,84,-101,-92,98,-54,-95
-];
-
 function getVibratoDelta(type, x) {
   var delta = 0;
   switch (type & 0x03) {
@@ -106,10 +99,8 @@ function getVibratoDelta(type, x) {
       delta = (x < 32 ? 0 : 255) - x * 4;
       break;
     case 2: // square
+    case 3: // random (in FT2 these two are the same)
       delta = x < 32 ? 127 : -127;
-      break;
-    case 3: // random
-      delta = randomTable[x];
       break;
     case 0:
     default: // sine
