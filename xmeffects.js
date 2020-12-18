@@ -65,7 +65,14 @@ function eff_t0_4(ch, data) {  // vibrato
 }
 
 function eff_t1_4(ch) {  // vibrato
-  ch.periodoffset = getVibratoDelta(ch.vibratotype, ch.vibratopos) * ch.vibratodepth;
+  var delta = getVibratoDelta(ch.vibratotype, ch.vibratopos);
+  // FT2 compatibility: Vibrato ramp down table is upside down.
+  if ((ch.vibratotype & 0x03) === 1) {
+    delta = -delta;
+  }
+  delta = (delta * ch.vibratodepth) / 64;
+  ch.periodoffset = delta;
+
   if (isNaN(ch.periodoffset)) {
     console.log("vibrato periodoffset NaN?",
         ch.vibratopos, ch.vibratospeed, ch.vibratodepth);
@@ -78,19 +85,35 @@ function eff_t1_4(ch) {  // vibrato
   }
 }
 
+var sinusTable = [
+	0,12,25,37,49,60,71,81,90,98,106,112,117,122,125,126,
+	127,126,125,122,117,112,106,98,90,81,71,60,49,37,25,12,
+	0,-12,-25,-37,-49,-60,-71,-81,-90,-98,-106,-112,-117,-122,-125,-126,
+	-127,-126,-125,-122,-117,-112,-106,-98,-90,-81,-71,-60,-49,-37,-25,-12
+];
+
+var randomTable = [
+	98,-127,-43,88,102,41,-65,-94,125,20,-71,-86,-70,-32,-16,-96,
+	17,72,107,-5,116,-69,-62,-40,10,-61,65,109,-18,-38,-13,-76,
+	-23,88,21,-94,8,106,21,-112,6,109,20,-88,-30,9,-127,118,
+	42,-34,89,-4,-51,-72,21,-29,112,123,84,-101,-92,98,-54,-95
+];
+
 function getVibratoDelta(type, x) {
   var delta = 0;
   switch (type & 0x03) {
     case 1: // sawtooth (ramp-down)
-      delta = ((1 + x * 2 / 64) % 2) - 1;
+      delta = (x < 32 ? 0 : 255) - x * 4;
       break;
     case 2: // square
-    case 3: // random (in FT2 these two are the same)
-      delta = x < 32 ? 1 : -1;
+      delta = x < 32 ? 127 : -127;
+      break;
+    case 3: // random
+      delta = randomTable[x];
       break;
     case 0:
     default: // sine
-      delta = Math.sin(x * Math.PI / 32);
+      delta = sinusTable[x];
       break;
   }
   return delta;
@@ -108,17 +131,33 @@ function eff_t1_6(ch) {  // vibrato + volume slide
 
 function eff_t0_7(ch, data) {  // tremolo
   if (data & 0x0f) {
-    ch.tremolodepth = (data & 0x0f) * 2;
+    ch.tremolodepth = (data & 0x0f) << 2;
   }
-  if (data >> 4) {
-    ch.tremolospeed = data >> 4;
+  if (data & 0xf0) {
+    ch.tremolospeed = (data >> 4) & 0x0f;
   }
   eff_t1_7(ch);
 }
 
 function eff_t1_7(ch) {  // tremolo
-  ch.voloffset =
-    getTremoloDelta(ch.tremolotype, ch.tremolopos) * ch.tremolodepth;
+  var delta = getVibratoDelta(ch.tremolotype, ch.tremolopos);
+  // FT2 compatibility: Tremolo ramp down / triangle implementation is weird and affected by vibrato position (copypaste bug)
+  if ((ch.tremolotype & 0x03) === 1) {
+    var ramp = (ch.tremolopos * 4) & 0x7f;
+    var vibratoPos = ch.vibratopos;
+    if (player.cur_tick > 0 && ch.vibratodepth > 0) {
+      vibratoPos += ch.vibratospeed;
+    }
+    if ((vibratoPos & 0x3f) >= 32) {
+      ramp ^= 0x7f;
+    }
+    if ((ch.tremolopos & 0x3f) >= 32) {
+      delta = -ramp;
+    } else {
+      delta = ramp;
+    }
+  }
+  ch.voloffset = (delta * ch.tremolodepth) / 32;
   if (isNaN(ch.voloffset)) {
     console.log("tremolo voloffset NaN?",
         ch.tremolopos, ch.tremolospeed, ch.tremolodepth);
@@ -130,25 +169,6 @@ function eff_t1_7(ch) {  // tremolo
     ch.tremolopos &= 63;
   }
 }
-
-function getTremoloDelta(type, x) {
-  var delta = 0;
-  switch (type & 0x03) {
-    case 1: // sawtooth (ramp-down)
-      delta = ((1 + x * 2 / 64) % 2) - 1;
-      break;
-    case 2: // square
-    case 3: // random (in FT2 these two are the same)
-      delta = x < 32 ? 1 : -1;
-      break;
-    case 0:
-    default: // sine
-      delta = Math.sin(x * Math.PI / 32);
-      break;
-  }
-  return delta;
-}
-
 
 function eff_t0_8(ch, data) {  // set panning
   ch.pan = data;
