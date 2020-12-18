@@ -276,6 +276,9 @@ function nextRow() {
       if (ch.vibratotype < 4) {
         ch.vibratopos = 0;
       }
+      if (ch.tremolotype < 4) {
+        ch.tremolopos = 0;
+      }
     }
   }
 }
