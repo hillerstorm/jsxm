@@ -70,8 +70,7 @@ function eff_t1_4(ch) {  // vibrato
   if ((ch.vibratotype & 0x03) === 1) {
     delta = -delta;
   }
-  delta = (delta * ch.vibratodepth) / 64;
-  ch.periodoffset = delta;
+  ch.periodoffset = (delta * ch.vibratodepth) / 64;
 
   if (isNaN(ch.periodoffset)) {
     console.log("vibrato periodoffset NaN?",
@@ -96,15 +95,15 @@ function getVibratoDelta(type, x) {
   var delta = 0;
   switch (type & 0x03) {
     case 1: // sawtooth (ramp-down)
-      delta = (x < 32 ? 0 : 255) - x * 4;
+      delta = (x < 32 ? 0 : 63) - x;
       break;
     case 2: // square
     case 3: // random (in FT2 these two are the same)
-      delta = x < 32 ? 127 : -127;
+      delta = x < 32 ? 63 : -63;
       break;
     case 0:
     default: // sine
-      delta = sinusTable[x];
+      delta = sinusTable[x] / 2;
       break;
   }
   return delta;
@@ -131,24 +130,27 @@ function eff_t0_7(ch, data) {  // tremolo
 }
 
 function eff_t1_7(ch) {  // tremolo
-  var delta = getVibratoDelta(ch.tremolotype, ch.tremolopos);
-  // FT2 compatibility: Tremolo ramp down / triangle implementation is weird and affected by vibrato position (copypaste bug)
-  if ((ch.tremolotype & 0x03) === 1) {
-    var ramp = (ch.tremolopos * 4) & 0x7f;
-    var vibratoPos = ch.vibratopos;
-    if (player.cur_tick > 0 && ch.vibratodepth > 0) {
-      vibratoPos += ch.vibratospeed;
+  if (ch.vol > 0) {
+    var delta = getVibratoDelta(ch.tremolotype, ch.tremolopos);
+    // FT2 compatibility: Tremolo ramp down / triangle implementation is weird and affected by vibrato position (copypaste bug)
+    if ((ch.tremolotype & 0x03) === 1) {
+      var ramp = ch.tremolopos & 0x3f;
+      var vibratoPos = ch.vibratopos;
+      if (player.cur_tick > 0 && ch.vibratodepth > 0) {
+        vibratoPos += ch.vibratospeed;
+      }
+      if ((vibratoPos & 0x3f) >= 32) {
+        ramp ^= 0x3f;
+      }
+      if ((ch.tremolopos & 0x3f) >= 32) {
+        delta = -ramp;
+      } else {
+        delta = ramp;
+      }
     }
-    if ((vibratoPos & 0x3f) >= 32) {
-      ramp ^= 0x7f;
-    }
-    if ((ch.tremolopos & 0x3f) >= 32) {
-      delta = -ramp;
-    } else {
-      delta = ramp;
-    }
+    ch.voloffset = (delta * ch.tremolodepth) / 64;
   }
-  ch.voloffset = (delta * ch.tremolodepth) / 32;
+
   if (isNaN(ch.voloffset)) {
     console.log("tremolo voloffset NaN?",
         ch.tremolopos, ch.tremolospeed, ch.tremolodepth);
