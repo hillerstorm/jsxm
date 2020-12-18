@@ -337,7 +337,7 @@ player.effects_t0 = [  // effect functions on tick 0
   eff_t0_4,  // 4
   eff_t0_a,  // 5, same as A on first tick
   eff_t0_a,  // 6, same as A on first tick
-  eff_unimplemented_t0,  // 7
+  eff_t0_7,  // 7
   eff_t0_8,  // 8
   eff_t0_9,  // 9
   eff_t0_a,  // a
@@ -376,7 +376,7 @@ player.effects_t1 = [  // effect functions on tick 1+
   eff_t1_4,
   eff_t1_5,  // 5
   eff_t1_6,  // 6
-  eff_unimplemented,  // 7
+  eff_t1_7,  // 7
   null,   // 8
   null,   // 9
   eff_t1_a,  // a
